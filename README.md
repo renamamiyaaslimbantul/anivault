@@ -2,7 +2,7 @@
 
 AniVault is a sleek, modern Single Page Application (SPA) designed for anime enthusiasts to discover, search, and track their favorite titles. Powered by the [Jikan API](https://jikan.moe/) (v4), AniVault provides a seamless experience with real-time data fetching and a clean, responsive UI.
 
-![AniVault Preview](https://aniv4ult.netlify.app/)
+[AniVault Preview](https://aniv4ult.netlify.app/)
 
 ## ✨ Features
 
