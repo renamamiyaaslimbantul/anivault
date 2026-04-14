@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AniVault | Anime Discovery Engine</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        accent: '#3b82f6',
+                        secondary: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-dark text-slate-200 font-sans antialiased;
+            }
+        }
+        @layer components {
+            .card-hover {
+                @apply transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-accent/20;
+            }
+        }
+        @layer utilities {
+            .line-clamp-3 {
+                overflow: hidden;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 3;
+            }
+        }
+    </style>
+    <!-- Lucide Icons (Optional but recommended for professional look) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header / Navigation -->
+    <header class="sticky top-0 z-50 bg-dark/80 backdrop-blur-md border-b border-slate-800">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
+                    <i data-lucide="database" class="text-white w-5 h-5"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight text-white">Ani<span class="text-accent">Vault</span></h1>
+            </div>
+            
+            <div class="flex-1 max-w-md mx-8">
+                <div class="relative">
+                    <input type="text" id="search-input" 
+                        class="w-full bg-secondary border border-slate-700 rounded-full py-2 px-10 focus:outline-none focus:border-accent transition-colors text-sm"
+                        placeholder="Search anime...">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-500 w-4 h-4"></i>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 md:gap-4">
+                <button id="btn-show-favorites" class="relative p-2.5 bg-slate-800/50 hover:bg-accent/20 hover:text-accent rounded-full transition-all group active:scale-95 border border-slate-700 hover:border-accent/30" title="View Favorites">
+                    <i data-lucide="heart" class="w-6 h-6 text-slate-300 group-hover:text-accent group-hover:fill-current transition-colors"></i>
+                    <span id="fav-count" class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-sm hidden">0</span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-10 flex-grow">
+        <!-- Hero Section -->
+        <section class="mb-12 text-center">
+            <h2 class="text-4xl md:text-6xl font-extrabold text-white mb-4">Discover Your Next <span class="text-accent underline decoration-4 underline-offset-8">Adventure</span></h2>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">Explore thousands of anime titles powered by the Jikan API. Your ultimate gateway to the world of animation.</p>
+        </section>
+
+        <!-- Filters Bar -->
+        <section class="mb-10">
+            <div class="flex flex-col md:flex-row flex-wrap items-center gap-4 bg-secondary/30 p-4 rounded-2xl border border-slate-800">
+                <!-- Genre Filter -->
+                <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                    <label for="filter-genre" class="text-[10px] uppercase font-bold text-slate-500 ml-1">Genre</label>
+                    <select id="filter-genre" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-xl focus:ring-accent focus:border-accent block w-full p-2.5 transition-colors cursor-pointer outline-none">
+                        <option value="">All Genres</option>
+                        <option value="1">Action</option>
+                        <option value="2">Adventure</option>
+                        <option value="4">Comedy</option>
+                        <option value="8">Drama</option>
+                        <option value="10">Fantasy</option>
+                        <option value="24">Sci-Fi</option>
+                    </select>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                    <label for="filter-status" class="text-[10px] uppercase font-bold text-slate-500 ml-1">Status</label>
+                    <select id="filter-status" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-xl focus:ring-accent focus:border-accent block w-full p-2.5 transition-colors cursor-pointer outline-none">
+                        <option value="">All Status</option>
+                        <option value="airing">Airing</option>
+                        <option value="complete">Complete</option>
+                        <option value="upcoming">Upcoming</option>
+                    </select>
+                </div>
+
+                <!-- Type Filter -->
+                <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                    <label for="filter-type" class="text-[10px] uppercase font-bold text-slate-500 ml-1">Type</label>
+                    <select id="filter-type" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-xl focus:ring-accent focus:border-accent block w-full p-2.5 transition-colors cursor-pointer outline-none">
+                        <option value="">All Types</option>
+                        <option value="tv">TV</option>
+                        <option value="movie">Movie</option>
+                        <option value="ova">OVA</option>
+                        <option value="special">Special</option>
+                    </select>
+                </div>
+
+                <!-- Reset Button -->
+                <div class="flex items-end h-full mt-auto md:ml-auto">
+                    <button id="btn-reset" class="flex items-center gap-2 px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all text-sm font-medium border border-transparent hover:border-slate-700">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Results Section -->
+        <div id="anime-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+            <!-- Skeleton Loading or Placeholder cards -->
+            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
+            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
+            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
+            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
+            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
+            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-secondary/50 border-t border-slate-800 py-10">
+        <div class="container mx-auto px-6 text-center text-slate-500">
+            <p>&copy; 2026 AniVault. Data provided by Jikan API.</p>
+        </div>
+    </footer>
+
+    <!-- Anime Detail Modal -->
+    <div id="anime-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
+        <!-- Overlay -->
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm js-modal-overlay"></div>
+
+        <!-- Modal Content -->
+        <div class="relative z-10 flex w-full h-full items-center justify-center px-4 py-10">
+            <article class="relative w-full max-w-4xl h-[52vh] bg-secondary border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                <!-- Close Icon -->
+                <button type="button" class="js-modal-close absolute top-4 right-4 p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-slate-700 transition-colors" aria-label="Close details">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+
+                <div class="grid grid-cols-1 md:grid-cols-[1.1fr_1.9fr] gap-0 md:gap-6 md:h-full items-stretch">
+                    <!-- Poster -->
+                    <div class="bg-slate-900/60 flex items-center justify-center max-h-[90vh]">
+                        <img id="modal-poster" src="" alt="Anime poster" class="h-auto w-auto max-h-[90vh] max-w-full object-contain" loading="lazy">
+                    </div>
+
+                    <!-- Details -->
+                    <div id="modal-details" class="p-6 md:p-8 space-y-4 max-h-[52vh] overflow-y-auto">
+                        <header class="space-y-2">
+                            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Anime Detail</p>
+                            <h3 id="modal-title" class="text-2xl md:text-3xl font-bold text-white leading-tight"></h3>
+                            <div class="flex flex-wrap items-center gap-2 mt-1 text-xs">
+                                <span id="modal-type" class="inline-flex items-center px-3 py-1 rounded-full bg-accent text-white font-semibold uppercase text-[10px]"></span>
+                                <span id="modal-score" class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-400 font-semibold">
+                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                    <span></span>
+                                </span>
+                                <span id="modal-year" class="text-slate-400 ml-1"></span>
+                            </div>
+                            <p id="modal-studios" class="text-xs text-slate-400 mt-1"></p>
+                        </header>
+
+                        <!-- Genres -->
+                        <section>
+                            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-2">Genres</h4>
+                            <div id="modal-genres" class="flex flex-wrap gap-2 text-xs"></div>
+                        </section>
+
+                        <!-- Synopsis -->
+                        <section class="space-y-1">
+                            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Synopsis</h4>
+                            <p id="modal-synopsis" class="text-sm leading-relaxed text-slate-200"></p>
+                        </section>
+
+                        <!-- Trailer -->
+                        <section class="space-y-2">
+                            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Trailer</h4>
+                            <div id="modal-trailer" class="rounded-xl overflow-hidden border border-slate-700 bg-slate-900/60"></div>
+                        </section>
+
+                        <!-- Actions -->
+                        <div class="pt-4 flex items-center justify-between border-t border-slate-800">
+                            <button id="modal-favorite-btn" type="button" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent/10 hover:bg-accent text-accent hover:text-white text-sm font-semibold border border-accent/30 transition-all active:scale-95 shadow-lg shadow-accent/5">
+                                <i data-lucide="heart" class="w-4 h-4"></i>
+                                <span>Add to Favorite</span>
+                            </button>
+                            
+                            <button type="button" class="js-modal-close inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-medium border border-slate-700 transition-all hover:border-slate-500">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                                <span>Close</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/assets/js/script.js" type="module"></script>
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
