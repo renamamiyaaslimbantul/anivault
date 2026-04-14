@@ -2,7 +2,7 @@
 
 AniVault is a sleek, modern Single Page Application (SPA) designed for anime enthusiasts to discover, search, and track their favorite titles. Powered by the [Jikan API](https://jikan.moe/) (v4), AniVault provides a seamless experience with real-time data fetching and a clean, responsive UI.
 
-![AniVault Preview](https://via.placeholder.com/1200x600/0f172a/3b82f6?text=AniVault+Discovery+Engine)
+![AniVault Preview](https://aniv4ult.netlify.app/)
 
 ## ✨ Features
 
@@ -31,7 +31,7 @@ To run this project locally, follows these simple steps:
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/yourusername/anivault.git
+    git clone https://github.com/renamamiyaaslimbantul/anivault.git
     cd anivault
     ```
 
