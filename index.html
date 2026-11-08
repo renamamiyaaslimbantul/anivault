@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AniVault | Anime Discovery Engine</title>
+    <title>AniVault | Anime Archive</title>
+    <meta name="description" content="Discover, search, and track anime. Powered by the Jikan API.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -12,108 +16,187 @@
             theme: {
                 extend: {
                     colors: {
-                        dark: '#0f172a',
-                        accent: '#3b82f6',
-                        secondary: '#1e293b'
-                    }
+                        // Midnight Archive palette
+                        dark: '#0d0c12',
+                        secondary: '#18161f',
+                        panel: '#1d1a25',
+                        accent: '#e2563b',
+                        bone: '#f1ede4',
+                        line: '#26232e',
+                        muted: '#8c8796',
+                        slate: {
+                            200: '#d9d5cc',
+                            300: '#b6b0a6',
+                            400: '#8c8796',
+                            500: '#6c6775',
+                            700: '#2a2733',
+                            800: '#1d1a25',
+                            900: '#141219'
+                        },
+                        // Remap legacy yellow score chips to bone
+                        yellow: { 400: '#f1ede4', 500: '#f1ede4' }
+                    },
+                    fontFamily: {
+                        display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    },
+                    borderRadius: { none: '0', sm: '2px', DEFAULT: '3px', lg: '4px', xl: '5px', '2xl': '6px' }
                 }
             }
         }
     </script>
     <style type="text/tailwindcss">
         @layer base {
+            html { scroll-behavior: smooth; }
             body {
                 @apply bg-dark text-slate-200 font-sans antialiased;
+                background-image:
+                    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(226, 86, 59, 0.08), transparent 60%),
+                    linear-gradient(rgba(241, 237, 228, 0.015) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(241, 237, 228, 0.015) 1px, transparent 1px);
+                background-size: 100% 100%, 48px 48px, 48px 48px;
+            }
+            :focus-visible {
+                outline: 2px solid var(--color-accent);
+                outline-offset: 2px;
+            }
+            ::selection { background: var(--color-accent); color: #fff; }
+            @media (prefers-reduced-motion: reduce) {
+                *, *::before, *::after {
+                    animation-duration: 0.01ms !important;
+                    transition-duration: 0.01ms !important;
+                }
             }
         }
         @layer components {
             .card-hover {
-                @apply transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-accent/20;
+                @apply transition-all duration-300;
+            }
+            .card-hover:hover {
+                @apply -translate-y-1;
+                box-shadow: 0 8px 24px -8px rgba(226, 86, 59, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4);
+            }
+            .eyebrow {
+                @apply text-[11px] font-medium tracking-[0.18em] text-muted uppercase;
             }
         }
         @layer utilities {
-            .line-clamp-3 {
-                overflow: hidden;
-                display: -webkit-box;
-                -webkit-box-orient: vertical;
-                -webkit-line-clamp: 3;
+            .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+            .line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+            .skeleton-img {
+                background: linear-gradient(90deg, #1d1a25 0%, #2a2733 50%, #1d1a25 100%);
+                background-size: 200% 100%;
+                animation: shimmer 1.5s infinite;
             }
+            @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+            @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+            .fade-in { animation: fade-in 0.25s ease-out; }
+            .toast-in { animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+            @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+            .scrollbar-none { scrollbar-width: none; }
+            .scrollbar-none::-webkit-scrollbar { display: none; }
         }
     </style>
-    <!-- Lucide Icons (Optional but recommended for professional look) -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="min-h-screen flex flex-col">
 
+    <!-- Toast region (a11y: polite announcements) -->
+    <div id="toast-region" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] pointer-events-none" role="status" aria-live="polite"></div>
+
     <!-- Header / Navigation -->
-    <header class="sticky top-0 z-50 bg-dark/80 backdrop-blur-md border-b border-slate-800">
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-                    <i data-lucide="database" class="text-white w-5 h-5"></i>
+    <header class="sticky top-0 z-50 bg-dark/85 backdrop-blur-md border-b border-line">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center gap-4">
+            <a href="#" class="flex items-center gap-2.5 shrink-0" aria-label="AniVault home">
+                <div class="w-8 h-8 bg-accent flex items-center justify-center rounded-sm">
+                    <i data-lucide="archive" class="text-white w-5 h-5"></i>
                 </div>
-                <h1 class="text-2xl font-bold tracking-tight text-white">Ani<span class="text-accent">Vault</span></h1>
-            </div>
-            
-            <div class="flex-1 max-w-md mx-8">
+                <h1 class="font-display text-2xl font-bold tracking-tight text-bone leading-none">AniVault</h1>
+            </a>
+
+            <div class="flex-1 max-w-md mx-4">
                 <div class="relative">
-                    <input type="text" id="search-input" 
-                        class="w-full bg-secondary border border-slate-700 rounded-full py-2 px-10 focus:outline-none focus:border-accent transition-colors text-sm"
-                        placeholder="Search anime...">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-500 w-4 h-4"></i>
+                    <input type="search" id="search-input"
+                        class="w-full bg-secondary border border-line rounded-sm py-2 pr-10 pl-9 focus:outline-none focus:border-accent transition-colors text-sm placeholder:text-slate-500"
+                        placeholder="Search titles, studios, genres..."
+                        aria-label="Search anime">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-500 w-4 h-4 pointer-events-none"></i>
+                    <button id="btn-clear-search" type="button" aria-label="Clear search"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-sm text-slate-400 hover:text-bone hover:bg-panel transition-colors hidden">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 md:gap-4">
-                <button id="btn-show-favorites" class="relative p-2.5 bg-slate-800/50 hover:bg-accent/20 hover:text-accent rounded-full transition-all group active:scale-95 border border-slate-700 hover:border-accent/30" title="View Favorites">
-                    <i data-lucide="heart" class="w-6 h-6 text-slate-300 group-hover:text-accent group-hover:fill-current transition-colors"></i>
-                    <span id="fav-count" class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-sm hidden">0</span>
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="hidden md:block">
+                    <select id="filter-sort" aria-label="Sort by"
+                        class="bg-secondary border border-line text-slate-200 text-sm rounded-sm focus:border-accent px-3 py-2 cursor-pointer outline-none">
+                        <option value="score">Top rated</option>
+                        <option value="popularity">Most popular</option>
+                        <option value="members">Most members</option>
+                        <option value="start_date">Newest</option>
+                        <option value="title">A → Z</option>
+                    </select>
+                </div>
+                <button id="btn-show-favorites"
+                    class="relative px-3.5 py-2 flex items-center gap-2 bg-secondary hover:bg-panel rounded-sm transition-all active:scale-95 border border-line hover:border-accent/40 text-sm font-medium text-slate-300"
+                    title="View favorites" aria-pressed="false">
+                    <i data-lucide="heart" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Favorites</span>
+                    <span id="fav-count" class="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white hidden">0</span>
                 </button>
             </div>
         </nav>
     </header>
 
     <!-- Main Content -->
-    <main class="container mx-auto px-6 py-10 flex-grow">
-        <!-- Hero Section -->
-        <section class="mb-12 text-center">
-            <h2 class="text-4xl md:text-6xl font-extrabold text-white mb-4">Discover Your Next <span class="text-accent underline decoration-4 underline-offset-8">Adventure</span></h2>
-            <p class="text-slate-400 text-lg max-w-2xl mx-auto">Explore thousands of anime titles powered by the Jikan API. Your ultimate gateway to the world of animation.</p>
+    <main class="container mx-auto px-6 py-12 flex-grow">
+
+        <!-- Hero -->
+        <section class="mb-12 max-w-3xl">
+            <p class="eyebrow mb-4">Curated anime archive</p>
+            <h2 class="font-display text-5xl md:text-7xl font-bold text-bone leading-[1.02] tracking-tight mb-5">
+                Find your next<br>obsession.
+            </h2>
+            <p class="text-slate-400 text-lg max-w-xl">Browse thousands of titles from the MyAnimeList catalog. Filter by mood, format, and airing status to narrow the stack.</p>
         </section>
 
         <!-- Filters Bar -->
         <section class="mb-10">
-            <div class="flex flex-col md:flex-row flex-wrap items-center gap-4 bg-secondary/30 p-4 rounded-2xl border border-slate-800">
-                <!-- Genre Filter -->
+            <div class="flex flex-col md:flex-row flex-wrap items-end gap-3 bg-secondary/60 p-4 rounded-md border border-line">
                 <div class="flex flex-col gap-1.5 w-full md:w-auto">
-                    <label for="filter-genre" class="text-[10px] uppercase font-bold text-slate-500 ml-1">Genre</label>
-                    <select id="filter-genre" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-xl focus:ring-accent focus:border-accent block w-full p-2.5 transition-colors cursor-pointer outline-none">
-                        <option value="">All Genres</option>
+                    <label for="filter-genre" class="eyebrow ml-0.5">Genre</label>
+                    <select id="filter-genre" class="bg-panel border border-line text-bone text-sm rounded-sm focus:border-accent w-full md:w-44 p-2.5 transition-colors cursor-pointer outline-none">
+                        <option value="">All genres</option>
                         <option value="1">Action</option>
                         <option value="2">Adventure</option>
                         <option value="4">Comedy</option>
                         <option value="8">Drama</option>
                         <option value="10">Fantasy</option>
+                        <option value="22">Romance</option>
                         <option value="24">Sci-Fi</option>
+                        <option value="30">Sports</option>
+                        <option value="37">Supernatural</option>
+                        <option value="41">Thriller</option>
                     </select>
                 </div>
 
-                <!-- Status Filter -->
                 <div class="flex flex-col gap-1.5 w-full md:w-auto">
-                    <label for="filter-status" class="text-[10px] uppercase font-bold text-slate-500 ml-1">Status</label>
-                    <select id="filter-status" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-xl focus:ring-accent focus:border-accent block w-full p-2.5 transition-colors cursor-pointer outline-none">
-                        <option value="">All Status</option>
+                    <label for="filter-status" class="eyebrow ml-0.5">Status</label>
+                    <select id="filter-status" class="bg-panel border border-line text-bone text-sm rounded-sm focus:border-accent w-full md:w-40 p-2.5 transition-colors cursor-pointer outline-none">
+                        <option value="">Any status</option>
                         <option value="airing">Airing</option>
-                        <option value="complete">Complete</option>
+                        <option value="complete">Finished</option>
                         <option value="upcoming">Upcoming</option>
                     </select>
                 </div>
 
-                <!-- Type Filter -->
                 <div class="flex flex-col gap-1.5 w-full md:w-auto">
-                    <label for="filter-type" class="text-[10px] uppercase font-bold text-slate-500 ml-1">Type</label>
-                    <select id="filter-type" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-xl focus:ring-accent focus:border-accent block w-full p-2.5 transition-colors cursor-pointer outline-none">
-                        <option value="">All Types</option>
+                    <label for="filter-type" class="eyebrow ml-0.5">Type</label>
+                    <select id="filter-type" class="bg-panel border border-line text-bone text-sm rounded-sm focus:border-accent w-full md:w-36 p-2.5 transition-colors cursor-pointer outline-none">
+                        <option value="">Any type</option>
                         <option value="tv">TV</option>
                         <option value="movie">Movie</option>
                         <option value="ova">OVA</option>
@@ -121,100 +204,100 @@
                     </select>
                 </div>
 
-                <!-- Reset Button -->
-                <div class="flex items-end h-full mt-auto md:ml-auto">
-                    <button id="btn-reset" class="flex items-center gap-2 px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all text-sm font-medium border border-transparent hover:border-slate-700">
+                <div class="md:hidden">
+                    <label for="filter-sort" class="eyebrow ml-0.5">Sort</label>
+                    <select id="filter-sort-mobile" class="bg-panel border border-line text-bone text-sm rounded-sm focus:border-accent w-full p-2.5 cursor-pointer outline-none" aria-label="Sort by">
+                        <option value="score">Top rated</option>
+                        <option value="popularity">Most popular</option>
+                        <option value="members">Most members</option>
+                        <option value="start_date">Newest</option>
+                        <option value="title">A → Z</option>
+                    </select>
+                </div>
+
+                <div class="flex items-end md:ml-auto">
+                    <button id="btn-reset" class="flex items-center gap-2 px-4 py-2.5 text-slate-400 hover:text-bone hover:bg-panel rounded-sm transition-all text-sm font-medium border border-line hover:border-slate-500">
                         <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-                        Reset Filters
+                        Reset
                     </button>
                 </div>
             </div>
         </section>
 
+        <!-- Result count / active view indicator -->
+        <div class="mb-5 flex items-baseline justify-between">
+            <p id="results-meta" class="text-sm text-slate-400" aria-live="polite"></p>
+            <p id="active-view" class="text-xs text-muted"></p>
+        </div>
+
         <!-- Dynamic Results Section -->
-        <div id="anime-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            <!-- Skeleton Loading or Placeholder cards -->
-            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
-            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
-            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
-            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
-            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
-            <div class="animate-pulse bg-secondary rounded-xl aspect-[3/4]"></div>
+        <div id="anime-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5" aria-busy="true">
         </div>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-secondary/50 border-t border-slate-800 py-10">
-        <div class="container mx-auto px-6 text-center text-slate-500">
-            <p>&copy; 2026 AniVault. Data provided by Jikan API.</p>
+    <footer class="bg-secondary/40 border-t border-line py-10">
+        <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-slate-500">
+            <p>&copy; 2026 AniVault</p>
+            <p>Data from the <a href="https://jikan.moe/" class="text-slate-300 underline decoration-line hover:decoration-accent underline-offset-2">Jikan API</a> · Unofficial MyAnimeList data</p>
         </div>
     </footer>
 
     <!-- Anime Detail Modal -->
-    <div id="anime-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
-        <!-- Overlay -->
-        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm js-modal-overlay"></div>
+    <div id="anime-modal" class="fixed inset-0 z-50 hidden items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm js-modal-overlay"></div>
 
-        <!-- Modal Content -->
-        <div class="relative z-10 flex w-full h-full items-center justify-center px-4 py-10">
-            <article class="relative w-full max-w-4xl h-[52vh] bg-secondary border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
-                <!-- Close Icon -->
-                <button type="button" class="js-modal-close absolute top-4 right-4 p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-slate-700 transition-colors" aria-label="Close details">
-                    <i data-lucide="x" class="w-5 h-5"></i>
+        <div class="relative z-10 flex w-full h-full items-center justify-center px-4 py-6">
+            <article class="relative w-full max-w-4xl max-h-[92vh] bg-secondary border border-line rounded-md shadow-2xl overflow-hidden flex flex-col md:grid md:grid-cols-[280px_1fr] md:max-h-[80vh]">
+                <!-- Close (mobile) -->
+                <button type="button" class="js-modal-close absolute top-3 right-3 z-20 p-2 rounded-sm bg-dark/80 hover:bg-panel border border-line transition-colors" aria-label="Close details">
+                    <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
 
-                <div class="grid grid-cols-1 md:grid-cols-[1.1fr_1.9fr] gap-0 md:gap-6 md:h-full items-stretch">
-                    <!-- Poster -->
-                    <div class="bg-slate-900/60 flex items-center justify-center max-h-[90vh]">
-                        <img id="modal-poster" src="" alt="Anime poster" class="h-auto w-auto max-h-[90vh] max-w-full object-contain" loading="lazy">
-                    </div>
+                <!-- Poster -->
+                <div class="bg-dark relative md:h-full">
+                    <img id="modal-poster" src="" alt="" class="w-full h-full object-cover aspect-[2/3] md:aspect-auto opacity-0 transition-opacity duration-300 js-poster-img">
+                </div>
 
-                    <!-- Details -->
-                    <div id="modal-details" class="p-6 md:p-8 space-y-4 max-h-[52vh] overflow-y-auto">
-                        <header class="space-y-2">
-                            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Anime Detail</p>
-                            <h3 id="modal-title" class="text-2xl md:text-3xl font-bold text-white leading-tight"></h3>
-                            <div class="flex flex-wrap items-center gap-2 mt-1 text-xs">
-                                <span id="modal-type" class="inline-flex items-center px-3 py-1 rounded-full bg-accent text-white font-semibold uppercase text-[10px]"></span>
-                                <span id="modal-score" class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-400 font-semibold">
-                                    <i data-lucide="star" class="w-3 h-3 fill-current"></i>
-                                    <span></span>
-                                </span>
-                                <span id="modal-year" class="text-slate-400 ml-1"></span>
-                            </div>
-                            <p id="modal-studios" class="text-xs text-slate-400 mt-1"></p>
-                        </header>
-
-                        <!-- Genres -->
-                        <section>
-                            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-2">Genres</h4>
-                            <div id="modal-genres" class="flex flex-wrap gap-2 text-xs"></div>
-                        </section>
-
-                        <!-- Synopsis -->
-                        <section class="space-y-1">
-                            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Synopsis</h4>
-                            <p id="modal-synopsis" class="text-sm leading-relaxed text-slate-200"></p>
-                        </section>
-
-                        <!-- Trailer -->
-                        <section class="space-y-2">
-                            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Trailer</h4>
-                            <div id="modal-trailer" class="rounded-xl overflow-hidden border border-slate-700 bg-slate-900/60"></div>
-                        </section>
-
-                        <!-- Actions -->
-                        <div class="pt-4 flex items-center justify-between border-t border-slate-800">
-                            <button id="modal-favorite-btn" type="button" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent/10 hover:bg-accent text-accent hover:text-white text-sm font-semibold border border-accent/30 transition-all active:scale-95 shadow-lg shadow-accent/5">
-                                <i data-lucide="heart" class="w-4 h-4"></i>
-                                <span>Add to Favorite</span>
-                            </button>
-                            
-                            <button type="button" class="js-modal-close inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-medium border border-slate-700 transition-all hover:border-slate-500">
-                                <i data-lucide="x" class="w-4 h-4"></i>
-                                <span>Close</span>
-                            </button>
+                <!-- Details -->
+                <div id="modal-details" class="p-6 md:p-8 flex-1 overflow-y-auto scrollbar-none">
+                    <header class="space-y-3 mb-6">
+                        <p class="eyebrow">Archive entry</p>
+                        <h3 id="modal-title" class="font-display text-2xl md:text-3xl font-bold text-bone leading-tight"></h3>
+                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                            <span id="modal-type" class="px-2.5 py-1 rounded-sm bg-accent text-white font-semibold uppercase text-[10px] tracking-wide"></span>
+                            <span id="modal-score" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm bg-bone/10 text-bone font-semibold">
+                                <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                <span>N/A</span>
+                            </span>
+                            <span id="modal-year" class="text-slate-400"></span>
                         </div>
+                        <p id="modal-studios" class="text-xs text-slate-400"></p>
+                    </header>
+
+                    <section class="mb-5">
+                        <h4 class="eyebrow mb-2">Genres</h4>
+                        <div id="modal-genres" class="flex flex-wrap gap-1.5 text-xs"></div>
+                    </section>
+
+                    <section class="mb-5">
+                        <h4 class="eyebrow mb-2">Synopsis</h4>
+                        <p id="modal-synopsis" class="text-sm leading-relaxed text-slate-200"></p>
+                    </section>
+
+                    <section class="mb-6">
+                        <h4 class="eyebrow mb-2">Trailer</h4>
+                        <div id="modal-trailer" class="rounded-sm overflow-hidden border border-line bg-dark"></div>
+                    </section>
+
+                    <div class="pt-4 flex items-center gap-3 border-t border-line">
+                        <button id="modal-favorite-btn" type="button" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-sm bg-accent/10 hover:bg-accent text-accent hover:text-white text-sm font-semibold border border-accent/30 transition-all active:scale-95">
+                            <i data-lucide="heart" class="w-4 h-4"></i>
+                            <span>Add to favorites</span>
+                        </button>
+                        <button type="button" class="js-modal-close inline-flex items-center gap-2 px-4 py-2.5 rounded-sm bg-panel hover:bg-slate-700 text-slate-200 text-sm font-medium border border-line transition-all">
+                            Close
+                        </button>
                     </div>
                 </div>
             </article>
@@ -224,7 +307,6 @@
     <!-- Scripts -->
     <script src="src/assets/js/script.js" type="module"></script>
     <script>
-        // Initialize Lucide Icons
         lucide.createIcons();
     </script>
 </body>
